@@ -1,0 +1,229 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--MapBox css-->
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@uber">
+        <meta name="twitter:creator" content="@uber">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@2.5.5/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'pk.eyJ1IjoiaGl2c2VtIiwiYSI6ImNsMmc0aWVqNjAwZnMza3FoNW5nYmNpZGgifQ.w_qx_I6lYInUq2NlBTqL_A';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: false,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            reactDOM.render(app, document.getElementById('app'));
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"5lpllivg3","label":"DATA TASHKENT GEO.csv","color":[143,47,191],"allData":[["БЦ KUBC","улица Фурката, 5",41.30531,69.24339,"А",2022,11000,9350,null,null,null,"Строится","БЦ"],["БЦ Tashkent City Лот 3","Ташкент Сити Лот 3",41.316031,69.252528,"А",2022,47000,30000,null,null,null,"Строится","БЦ"],["БЦ Trilliant","улица Шахрисабз",41.31628,69.28131,"А",2022,25020,21267,null,null,null,"Строится","БЦ"],["БЦ Zarafshan City","махалля Мухандислар",41.28181,69.25449,"А",2022,8000,6800,null,null,null,"Строится","БЦ"],["БЦ Tashkent City Лот 2","Ташкент Сити Лот 2",41.319041,69.252196,"А",2023,25000,21250,null,null,null,"Строится","БЦ"],["БЦ Tashkent City Лот 4","Ташкент Сити Лот 4",41.313075,69.251431,"А",2023,20000,17000,null,null,null,"Строится","БЦ"],["БЦ Infinity","улица Истикбол, 45-1",41.30099,69.29022,"А",null,8600,7310,null,null,null,"Нет данных","БЦ"],["БЦ Tashkent City Лот 6","Ташкент Сити Лот 6",41.31443,69.245527,"А",null,325000,276250,null,null,null,"Нет данных","БЦ"],["БЦ Atrium","12ул. Айбека, 18/1",41.29634,69.27504,"В",2000,7500,6375,null,5,null,"Существующий","БЦ"],["БЦ Inconel","пр. Мустакиллик, 75 ",41.32059,69.30026,"В",2000,8500,5600,"4%",10,"1944000сум/год","Существующий","БЦ"],["БЦ Oasis","Саларская набережная, 35А",41.32655,69.3134,"В",2000,9696,8242,null,null,null,"Существующий","БЦ"],["БЦ NGKA","ул. Асака, 39",41.31471,69.30828,"В",2005,1000,850,null,null,null,"Существующий","БЦ"],["БЦ Avalon","ул. Ойбек 38А ",41.29151,69.28031,"В",2009,2161,1837,null,5,"1680000–1800000сум/год","Существующий","БЦ"],["БЦ Sigma","ул. Нукус, 71 ",41.28913,69.27543,"В",2009,7200,6120,"2%",9,"1680000–1800000сум/год","Существующий","БЦ"],["БЦ UzOman Tower","ул. Амир Темура, 95А",41.33271,69.28374,"В",2010,8600,7310,null,7,"2980800сум/год","Существующий","БЦ"],["БЦ Darhan","пр-т Мустакиллик, 88А",41.31938,69.3009,"В",2012,7000,4000,"0%",6,"1680000сум/год","Существующий","БЦ"],["БЦ New level","Тараса Шевченко, 23",41.29657,69.28184,"В",2018,8000,6800,null,7,null,"Существующий","БЦ"],["БЦ Alpha business center","улица Зульфияханум, 12",41.33141,69.26883,"В",2020,8100,6885,null,null,null,"Существующий","БЦ"],["БЦ Arash Centre","улица Истикбол, 34",41.30171,69.28853,"В",null,4000,3400,null,null,null,"Нет данных","БЦ"],["БЦ Grande trade","ул. Афросиаб, 4А",41.30206,69.2689,"В",null,13440,11424,null,null,null,"Нет данных","БЦ"],["БЦ Tower","улица Фурката, 191",41.30168,69.24921,"В",null,2976,2530,null,null,null,"Нет данных","БЦ"],["БЦ City line","ул. 9-й Абдуллы Каххара, 1А",41.27099,69.26134,"В-",2020,4500,3825,null,5,null,"Существующий","БЦ"],["БЦ Avtokomponent","проспект Амира Темура, 13",41.30614,69.27798,"В-",null,13000,11050,null,null,null,"Нет данных","БЦ"],["БЦ Besh-Yogoch","улица Афросиаб, 16",41.29911,69.27234,"В-",null,2000,1700,null,null,null,"Нет данных","БЦ"],["БЦ Chilanzar","ул. Чиланзарская, 10",41.28668,69.22792,"В-",null,3000,2550,null,null,null,"Нет данных","БЦ"],["БЦ Dukat","улица Афросиаб, 12Б",41.2999,69.27144,"В-",null,8500,7225,null,null,null,"Нет данных","БЦ"],["БЦ Inco","ул. Чехова, 32",41.29554,69.27441,"В-",null,2600,2210,null,null,null,"Нет данных","БЦ"],["БЦ Mercury","улица Нукус, 3",41.2992,69.29053,"В+",2000,6000,5100,null,null,null,"Существующий","БЦ"],["Международный Бизнес Центр","ул. Амира Темура, 107Б ",41.33625,69.28222,"В+",2000,61530,21400,"20%",19,"2700000сум/год","Существующий","БЦ"],["БЦ Capital (Пойтахт)","ул. Шарафа Рашидова, 16",41.3177,69.27201,"В+",2007,30000,25500,"4%",13,"1632000сум/год","Существующий","БЦ"],["БЦ Simurg","ул. Амир Темур 88-А",41.33378,69.28506,"В+",2018,17790,7353,"60%",9,null,"Существующий","БЦ"],["БЦ Gross plaza","улица Саида Барака, 78",41.2949,69.27814,"В+",2020,13000,11000,null,null,null,"Существующий","БЦ"],["БЦ IT-park","ул. Махтумкули, 1А",41.302871,69.314695,"В+",2022,24000,20400,null,null,null,"Строится","БЦ"],["БЦ International business center","просп. Амира Темура, 107Б",41.336205,69.282279,"В+",null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ The Business Park","улица Махтумкули, 1",41.30297,69.31591,"В+",null,14877,12645,null,null,null,"Нет данных","БЦ"],["БЦ Afrosiyob","улица Афросиаб, 14",41.29939,69.27186,"С",2000,1100,935,null,null,null,"Существующий","БЦ"],["БЦ Maxam","улица Афросиаб, 12А",41.29972,69.27166,"С",2000,1100,935,null,null,null,"Существующий","БЦ"],["БЦ New world","улица Айбека, 24",41.29458,69.27688,"С",2019,7504,6378,null,null,null,"Существующий","БЦ"],["БЦ G Build","улица Богидил, 2А",41.29567,69.2591,"С",2021,1550,1318,null,null,null,"Существующий","БЦ"],["БЦ на проспекте Амира Темура, 60","ул. Амира Темура, 60",41.32265,69.28264,"С",null,20000,17000,null,null,null,"Нет данных","БЦ"],["БЦ Barakat","улица Афросиаб, 2",41.30314,69.2676,"С",null,3560,null,null,null,null,"Нет данных","БЦ"],["БЦ Bobur","ул. Бобура, 40",41.28829,69.25191,"С",null,1500,1275,null,null,null,"Нет данных","БЦ"],["БЦ City life","ул. Мукумий, 2/1,",41.280283,69.253,"С",null,1000,850,null,null,null,"Нет данных","БЦ"],["БЦ CocaCola","улица Эльбека, 3/1",41.29932,69.2928,"С",null,15000,12750,null,null,null,"Нет данных","БЦ"],["БЦ Milk Euro Food","улица Эльбека, 11",41.29895,69.29521,"С",null,3000,2550,null,null,null,"Нет данных","БЦ"],["БЦ Missuri","проспект Мустакиллик, 59",41.31857,69.29581,"С",null,3500,2975,null,null,null,"Нет данных","БЦ"],["БЦ Nbs","улица Нукус, 29А",41.29423,69.28266,"С",null,6000,5100,null,null,null,"Нет данных","БЦ"],["БЦ Optima","массив Минор, 96А",41.33171,69.27764,"С",null,1800,1530,null,null,null,"Нет данных","БЦ"],["БЦ Osc Constructior","Малая кольцевая дорога, 5",41.29913,69.29613,"С",null,3500,2975,null,null,null,"Нет данных","БЦ"],["БЦ Silver","улица Нукус, 86к2",41.28946,69.27364,"С",null,1900,1615,null,null,null,"Нет данных","БЦ"],["БЦ Uzbekneftegaz","улица Истикбол, 17",41.30756,69.28441,"С",null,8000,6800,null,null,null,"Нет данных","БЦ"],["БЦ INSAM (Mercury УТОЧНИТЬ)","ул. Нукус, 2Б",41.28128,69.25791,"B+ ",2018,12000,9000,"100%",5,"3780000–4560000сум/год","Существующий","БЦ"],["БЦ Техноплаза","ул. Темура Малика (Аэродромная), 146",41.30891,69.3442,null,2012,5000,null,null,null,"1080000-1440000сум/год","Существующий","БЦ"],["МФК \"Modera Towers\"","улица Шота Руставели, 19",41.292489,69.263308,null,2023,11000,9350,null,null,null,"Строится","БЦ"],["Бизнес Центр","ул. Заркайнар, 1",41.32949,69.23885,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ ВИН завод","улица Истикбол",41.30187,69.28926,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ Идеал","ул. Нукусская, 46",41.28161,69.25794,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ Интегро","пр. Бунедкор, 52",41.2762,69.20503,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ Миссури","пр. Мустакиллик, 59",41.31887,69.29632,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ Adolat Nashriyoti","проспект Амира Темура, 19",41.30393,69.27904,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ ALIXODA","ул. Ойбек 38",41.29194,69.27999,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ Aviapark","улица Эльбека",41.29902,69.30486,null,null,14300,null,null,null,null,"Нет данных","БЦ"],["БЦ Era ","массив Киёт, 56А",41.32774,69.27943,null,null,5000,4250,null,null,null,"Нет данных","БЦ"],["БЦ Gosht Group","улица Садыка Азимова, 2",41.30763,69.29043,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ Grand","ул. Шота Руставели 12",41.29465,69.26589,null,null,null,null,"4%",null,null,"Нет данных","БЦ"],["БЦ Ideal","улица Нукус, 46А",41.28208,69.25952,null,null,1300,1105,null,null,null,"Нет данных","БЦ"],["БЦ Inter Capital","пр. Бунедкор, 42 А",41.28093,69.20984,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ Laib","улица Садыка Азимова, 1/28",41.30686,69.29091,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ Prom.uz","улица Садыка Азимова, 68",41.30662,69.29011,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ Seoul Plaza","Шахрисабзский проезд, 5А",41.30528,69.28324,null,null,null,null,null,null,null,"Нет данных","БЦ"],["БЦ Shevchenko plaza","улица Тараса Шевченко, 21",41.29801,69.28027,null,null,null,null,null,null,null,"Нет данных","БЦ"],["Мбрц НБ ВЭД Руз","улица Истикбол, 23",41.30619,69.28513,null,null,null,null,null,null,null,"Нет данных","БЦ"],["Mega city invest","махалля Чорсу",41.324183,69.232263,null,null,19000,null,null,null,null,"Нет данных","БЦ"],["Аркада","ул. Сайилгох",41.31242,69.27461,null,2010,null,null,"Строится",2,"15","Существующий","ТЦ"],["Арт Центр Ташкент Плаза","ул. Амира Темура, 106",41.336428,69.280017,null,null,null,null,null,2,"12","Нет данных","ТЦ"],["ДЕПО Mall","бывшее Чиланзарское трамвайное депо №2",41.27308,69.16931,null,2021,57363,33895,"н/д ",null,null,"Существующий","ТЦ"],["Супер Центр","пр. Амира Темура",41.31977,69.28545,null,null,3000,2250,"Строится",2,"35","Нет данных","ТЦ"],["ТРЦ «Vega Centre» на Южном вокзале"," ул. Шота Руставели, 150",41.26011,69.22361,null,2014,11158,8368,"Строится",6,"10","Существующий","ТЦ"],["ТЦ \"Авиатор\"","ул. Эльбек, 61",41.299,69.30274,null,2016,null,null,"н/д ",null,null,"Существующий","ТЦ"],["ТЦ Зарафшан","ул. Матбуотчилар, 17",41.31228,69.2735,null,2010,null,null,"нет вакантных площадей",2,"40","Существующий","ТЦ"],["ТЦ Магнит","ул. Абдурауфа Фитрата, 2",41.27298,69.30939,null,2011,null,null,"н/д ",5,"30","Существующий","ТЦ"],["ТЦ Шедевр","ул. Алишера Навои, 11В",41.31825,69.27581,null,2016,null,null,null,2,null,"Существующий","ТЦ"],["ЦУМ","пр. Узбекистан, 17",41.30792,69.27023,null,2018,null,null,"Строится",3,"40","Существующий","ТЦ"],["Afsona","ул. Беруни, 1А",41.3353,69.21304,null,null,3300,2700,"н/д ",3,"50","Нет данных","ТЦ"],["Anhor Park","Шайхантахурский р-н, Лабзак, дом 12/1",41.32747,69.2651,null,2017,5998,4669,"н/д ",null,null,"Существующий","ТЦ"],["Atlas «Чимган»","проспект Темура Малика, 3А",41.35382,69.35353,null,2020,22000,16500,null,null,null,"Существующий","ТЦ"],["ATLAS CHILANZAR","ул Катартал 28",41.28131,69.20153,null,2017,15000,12400,"1 250 кв. м",4,"15","Существующий","ТЦ"],["Atlas Yunusobod","ул. Юнусота, 119",41.37193,69.3116,null,2018,null,null,"н/д ",null,null,"Существующий","ТЦ"],["Atrium trade center","Махтумкули 3/6",41.30451,69.30761,null,2019,null,null,null,null,null,"Существующий","ТЦ"],["Central Mall (Central Plaza)","Ташкент-Сити, Лот 2",41.3196,69.25169,null,2022,53300,23600,null,4,null,"Строится","ТЦ"],["Chilonzor Savdo Markazi","ул. Чиланзарская, 55",41.28304,69.22227,null,null,6200,4500,null,2,"15","Нет данных","ТЦ"],["COMPASS","ул. Фаргона Йули (мост «Кулюк») и ТКАД",41.23902,69.32866,null,2018,35377,19625,null,2,"25","Существующий","ТЦ"],["ESKI SHAHAR","пересечение ул. Чигатай и Нурафшон ",41.33787,69.22305,null,2018,14657,11108,null,3,"н/д","Существующий","ТЦ"],["Integro","пр-т БУНЁДКОР, 52",41.2772,69.20517,null,2020,null,null,null,null,null,"Существующий","ТЦ"],["MEGA PLANET","ул. А.Дониша, 2Б",41.36725,69.29101,null,2010,25000,17000,null,4,"20","Существующий","ТЦ"],["Mercato","Малая Кольцевая Дорога, 19-55",41.33853,69.27187,null,2012,null,null,null,2,"35","Существующий","ТЦ"],["NEXT","ул. Бабура, 5",41.29786,69.24945,null,2013,25000,14000,null,5,"75","Существующий","ТЦ"],["Parus","ул. Катартал 60",41.29197,69.21099,null,2015,null,null,null,6,null,"Существующий","ТЦ"],["Piramit Mall","ул. Ш. Руставели\nЯккасарайский район, 53Б,",41.28148,69.25494,null,2023,38000,28500,null,5,null,"Строится","ТЦ"],["POYTAHT","ул Матбуотчилар, 9 ",41.31137,69.27544,null,2010,20000,15000,null,3,"13","Существующий","ТЦ"],["RIVIERA ","Пересечение ул. Нурафшан и ул. Себзар",41.33926,69.25457,null,2020,40370,20150,null,3,"н/д","Существующий","ТЦ"],["SAMARQAND DARVOZA","ул. Коратош, 5А",41.31623,69.23122,null,2014,41809,31000,null,6,"12","Существующий","ТЦ"],["Sampi Bozori","Юнусабадский район, улица Богишамол, 260-А",41.35526,69.33373,null,2020,17708,13281,null,5,null,"Существующий","ТЦ"],["Seoul Mun","Набережная канала Бурджар, ул Бобура возле ТЦ Next",41.29938,69.24535,null,2023,22000,16500,null,3,null,"Строится","ТЦ"],["Shahar Outlet","Пересечение Нурафшон и Чигатай",41.33787,69.22305,null,2018,14657,11108,null,null,null,"Существующий","ТЦ"],["Tashkent City Mall","Ташкент-Сити, Лот 3",41.3162,69.25225,null,2023,250000,100500,null,5,null,"Строится","ТЦ"],["Uchtepa Outlet Centre","ул. Фархадская, 31",41.29239,69.1809,null,2018,null,null,null,1,"10","Существующий","ТЦ"],["Yangiobod Bazaar",null,41.25902425627684,69.35306713323094,null,null,null,null,null,null,null,null,"bazar"],["Qo'yliq Bazaar",null,41.23652892544433,69.32958847535697,null,null,null,null,null,null,null,null,"bazar"],["Farkhad Bazaar",null,41.28553270762557,69.18981407498842,null,null,null,null,null,null,null,null,"bazar"],["Alay Bazaar",null,41.3193045955232,69.28315531504231,null,null,null,null,null,null,null,null,"bazar"],["Chorsu Bazaar",null,41.326766773009076,69.23501085569008,null,null,null,null,null,null,null,null,"bazar"],["Mirabad Bazaar",null,41.291005381231884,69.27480951689215,null,null,null,null,null,null,null,null,"bazar"]],"fields":[{"name":"Название проекта","type":"string","format":"","analyzerType":"STRING"},{"name":"Адрес","type":"string","format":"","analyzerType":"STRING"},{"name":"latitude","type":"real","format":"","analyzerType":"FLOAT"},{"name":"longitude","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Класс","type":"string","format":"","analyzerType":"STRING"},{"name":"Дата строительства","type":"integer","format":"","analyzerType":"INT"},{"name":"Общая площадь","type":"integer","format":"","analyzerType":"INT"},{"name":"Арендуемая офисная площадь","type":"integer","format":"","analyzerType":"INT"},{"name":"Доля вакантных площадей","type":"string","format":"","analyzerType":"STRING"},{"name":"Количество этажей","type":"integer","format":"","analyzerType":"INT"},{"name":"Ставка аренды","type":"string","format":"","analyzerType":"STRING"},{"name":"Статус","type":"string","format":"","analyzerType":"STRING"},{"name":"Тип данных","type":"string","format":"","analyzerType":"STRING"}]}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[],"layers":[{"id":"gqth9uv","type":"point","config":{"dataId":"5lpllivg3","label":"Point","color":[218,112,191],"highlightColor":[252,242,26,255],"columns":{"lat":"latitude","lng":"longitude","altitude":null},"isVisible":true,"visConfig":{"radius":35.7,"fixedRadius":false,"opacity":0,"outline":false,"thickness":2,"strokeColor":null,"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radiusRange":[0,50],"filled":true},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":{"name":"Дата строительства","type":"integer"},"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear"}}],"interactionConfig":{"tooltip":{"fieldsToShow":{"5lpllivg3":[{"name":"Название проекта","format":null},{"name":"Адрес","format":null},{"name":"Класс","format":null},{"name":"Дата строительства","format":null},{"name":"Общая площадь","format":null}]},"compareMode":false,"compareType":"absolute","enabled":true},"brush":{"size":0.5,"enabled":false},"geocoder":{"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1}},"mapState":{"bearing":0,"dragRotate":false,"latitude":41.30797537097596,"longitude":69.26683403021875,"pitch":0,"zoom":13.556172697451865,"isSplit":false},"mapStyle":{"styleType":"w9nwkb","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"building":true,"water":true},"threeDBuildingColor":[194.6103322548211,191.81688250953655,185.2988331038727],"mapStyles":{"w9nwkb":{"accessToken":"pk.eyJ1IjoiaGl2c2VtIiwiYSI6ImNsMmc0aWVqNjAwZnMza3FoNW5nYmNpZGgifQ.w_qx_I6lYInUq2NlBTqL_A","custom":true,"icon":"https://api.mapbox.com/styles/v1/hivsem/cl2g77hz9000f15mxn2dtoik4/static/-122.3391,37.7922,9,0,0/400x300?access_token=pk.eyJ1IjoiaGl2c2VtIiwiYSI6ImNsMmc0aWVqNjAwZnMza3FoNW5nYmNpZGgifQ.w_qx_I6lYInUq2NlBTqL_A&logo=false&attribution=false","id":"w9nwkb","label":"TEST FINAL 666","url":"mapbox://styles/hivsem/cl2g77hz9000f15mxn2dtoik4"}}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            store.dispatch(keplerGl.addDataToMap({
+              datasets: loadedData.datasets,
+              config: loadedData.config,
+              options: {
+                centerMap: false
+              }
+            }));
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
